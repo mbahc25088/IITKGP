@@ -59,4 +59,4 @@ Team-written `index.html` (MIT) with AI drafting help (Muse Spark) across code, 
 AI drafting help (Muse Spark) used for code, prose, and design. Team traces, predicts, and defends every component. Toy labeled not-official-BDH throughout.
 
 ## 10. Limits
-Hash + 4 rule cartoons ≠ learned keys/decay/sparsity or real Mamba/delta/HOLA/BDH kernels. Exact-match only. Vendor numbers unreproduced. Forgetting silent. Session memory ≠ durable learning.
+Hash-%-N + 4 rule cartoons ≠ learned keys/decay/sparsity or real Mamba/delta/HOLA/BDH kernels — discrete proxy for vector superposition S_t=S_{t-1}U+v_t k_t^T where q^T S_t degrades via cross-talk Σ(q^T U^{t-τ}k_τ)v_τ when n>d. Exact-match only. BDH-GPU ≠ standard linear attention (fixed φ Performer/Katharopoulos which drifts); BDH uses sparse ReLU low-rank + Hebbian + U for stability. Vendor numbers unreproduced. Forgetting silent. Session memory ≠ durable learning (fast-to-slow consolidation open).

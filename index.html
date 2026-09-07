@@ -105,6 +105,7 @@ a{color:var(--vio)}
 <h3 class="sans">Truth beside estimate</h3>
 <table class="sans"><thead><tr><th>Key</th><th>Truth</th><th>KV says</th><th>Whiteboard says</th><th>Who stole it?</th></tr></thead><tbody id="qRow"></tbody></table>
 <p class="small sans" id="accLine"></p>
+<div class="note sans"><b>Judge bridge · hash % N → real superposition:</b> Softmax attention stores keys explicitly (K ∈ ℝ<sup>n×d</sup>). Recurrent linear attention / BDH accumulates additively: S<sub>t</sub> = S<sub>t-1</sub>U + v<sub>t</sub>k<sub>t</sub><sup>T</sup>. Querying gives q<sup>T</sup>S<sub>t</sub> = (q<sup>T</sup>k<sub>t</sub>)v<sub>t</sub> + Σ<sub>τ&lt;t</sub>(q<sup>T</sup>U<sup>t-τ</sup>k<sub>τ</sub>)v<sub>τ</sub> — the sum is cross-talk when keys are not orthogonal (n &gt; d). Our hash maps n keys into N slots as a discrete proxy for projecting n tokens into a d-dim state. Delta-rule (blend) is closest to this: averaging models loss of purity where neither value is verbatim recoverable.</div>
 </section>
 
 <section class="card">
@@ -120,7 +121,7 @@ a{color:var(--vio)}
 <h2>Okay, so the real machine did the whiteboard thing too.</h2>
 <p><b>Who:</b> Dragon Hatchling (BDH), Pathway's weird-and-cool Post-Transformer. Quick note so nobody gets yelled at in Q&A: <b>not</b> a Mamba-style SSM — BDH-GPU is its own GPU-friendly rewrite from ReLU low-rank maps + linear attention. BDH doesn't keep drawers; it scribbles into <b>synapses while reading</b>. The one equation we're confident enough to frame (Eq.5):</p>
 <div class="eq">ρ<sub>t−1,l</sub> = Σ<sub>τ&lt;t</sub> v*<sub>τ,l−1</sub> x<sub>τ,l</sub><sup>T</sup> U<sup>t−τ</sup> <span style="font-size:.85rem;color:#d6d3d1">— BDH-GPU attention state, Eq.5: fixed-shape matrix, additive updates, O(1) in length</span></div>
-<p class="small mut">Same deal as your whiteboard upstairs, just with learned keys, a decay U, and ~5% of neurons awake at a time. If you want the full math: Kosowski et al. §3.2 Eqs.4–5, Hebbian lens 6–8, toy code App.E. We read it so you can skim it.</p>
+<p class="small mut">Same deal as your whiteboard upstairs, just with learned keys, a decay U, and ~5% of neurons awake at a time. Why not standard linear attention (Katharopoulos / Performer with fixed φ)? Those use fixed positive feature maps to approximate softmax and suffer unnormalized drift. BDH uses strictly non-negative sparse activations via ReLU low-rank maps plus Hebbian plasticity modulated by U — stable O(1) without O(n²). Full math: Kosowski et al. §3.2 Eqs.4–5, Hebbian lens 6–8, toy code App.E.</p>
 <div class="evidence sans">
 <div class="ev"><b>Receipt #1 · vendor told us, we didn't verify:</b> 134M BDH gets <b>95% at 32K → 82% at 128K</b> on BABILong QA1–QA5 (pathway.com). Holds long, sags under load — exactly your toy's curve, at real scale. <span class="mut">Pending contamination / independent / leaderboard review. A benchmark is not a deployment, we'll say it in the viva too.</span></div>
 <div class="ev warn"><b>Receipt #2 · the cousin BDH-CQ:</b> 150M, <b>29.5% pass@2 on ARC-AGI-1 @ ~$0.0007/task</b> (arXiv:2608.09888). Thinks in latent space, no chain-of-thought essays — cheap, not champion. Self-reported, weights unreleased.</div>
@@ -168,7 +169,7 @@ const kvBar=$('kvBar'),rBar=$('rBar'),nSlider=$('nSlider'),nLab=$('nLab'),nSlots
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 const WORDS=["mango","river","tabla","neem","quartz","kite","chai","orbit","pixel","lotus","monsoon","tiger","banyan","cloud","saffron","ghat","iron","dog","cat","rickshaw"];
 function pairs(n){const a=[];for(let i=0;i<n;i++){const k=WORDS[i%WORDS.length]+"-"+Math.floor(i/WORDS.length);a.push({k,v:(hash(k)%89)+11})}return a}
-const RULES={hash:"<b>hash:</b> cartoon of raw overwrite. Last writer wins the slot. Honest baseline — real attention interferes by superposition, not modulo, same shape.",
+const RULES={hash:"<b>hash:</b> cartoon of raw overwrite. Last writer wins the slot. Honest baseline — real recurrent states interfere by vector superposition (S += v k<sup>T</sup>), not modulo hashing. Same invariant: n &gt; capacity → silent degradation. See Judge bridge below.",
 mamba:"<b>mamba-gate (cartoon):</b> selective gate. If the squatter's key hashes salient (÷3==0) the gate stays shut and the newcomer is refused. Fewer overwrites, biased memory.",
 delta:"<b>delta (cartoon):</b> superposition blend. Colliders average: v←round((old+new)/2). Slot answers <i>neither</i> key — the classic lossy-state failure.",
 hola:"<b>hola (cartoon):</b> whiteboard + 8-slot exact 'hippocampus' for recent collision victims (surprise cache). Whiteboard still O(1); cache rescues the surprises.",
