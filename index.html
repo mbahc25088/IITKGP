@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Forgetting Is the Price of Remembering Cheaply — KV vs Recurrent + BDH · Cloud 9</title>
+<style>
+:root{--paper:#f7f4ec;--ink:#1c1917;--mut:#78716c;--vio:#5b21b6;--amber:#b45309;--ok:#166534;--bad:#991b1b;--card:#fffdf7;--line:#e7e0d0;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.6}
+.sans{font-family:system-ui,-apple-system,'Segoe UI',Inter,Roboto,sans-serif}
+.hero{background:radial-gradient(1200px 400px at 15% -10%,#a78bfa 0%,transparent 60%),radial-gradient(900px 380px at 90% 0%,#fbbf24 0%,transparent 55%),#1c1917;color:#fafaf9;padding:52px 22px 40px;position:relative;overflow:hidden}
+.hero .wrap{max-width:980px;margin:0 auto;position:relative}
+.kicker{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#fcd34d}
+.hero h1{font-size:clamp(1.9rem,4.5vw,3rem);line-height:1.08;margin:.4em 0 .3em;max-width:20ch}
+.hero h1 em{font-style:italic;color:#ddd6fe}
+.hero p.dek{font-size:1.08rem;color:#e7e5e4;max-width:62ch}
+.claimbox{margin-top:18px;background:#fafaf9;color:#1c1917;border-radius:14px;padding:16px 18px;display:grid;gap:8px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.claimbox b.tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;background:#1c1917;color:#fcd34d;border-radius:999px;padding:3px 10px;width:fit-content}
+main{max-width:980px;margin:0 auto;padding:8px 20px 40px}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin:22px 0;box-shadow:0 2px 0 rgba(28,25,23,.06)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
+h2{font-size:1.45rem;margin:.2em 0 .4em;line-height:1.25}
+p{margin:.55em 0} .mut{color:var(--mut)} .small{font-size:.88rem}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}@media(max-width:720px){.steps{grid-template-columns:1fr}}
+.step{border:1px dashed #d6cdb4;border-radius:12px;padding:12px;background:#fff}
+.step b{font-family:var(--mono);font-size:.75rem;color:var(--vio)}
+.lab-controls{display:flex;gap:14px;flex-wrap:wrap;align-items:end;background:#1c1917;color:#fafaf9;border-radius:14px;padding:14px 16px;margin:12px 0}
+.lab-controls label{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#d6d3d1;display:block;margin-bottom:4px}
+.lab-controls input[type=range]{width:min(260px,60vw);accent-color:#fbbf24}
+.lab-controls select{background:#fafaf9;border-radius:8px;padding:6px 8px;border:0;font-family:var(--mono)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{font-family:system-ui;cursor:pointer;border-radius:999px;border:1px solid #44403c;padding:8px 14px;background:#fafaf9;color:#1c1917;font-weight:600}
+button.primary{background:#fbbf24;border-color:#fbbf24}
+button.ghost{background:transparent;color:#fafaf9;border-color:#78716c}
+button.dark{background:#1c1917;color:#fafaf9}
+button:active{transform:translateY(1px)}
+.boards{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760px){.boards{grid-template-columns:1fr}}
+.board{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}
+.board h3{margin:0 0 4px;font-family:system-ui;font-size:1rem}
+.board h3 .tag{font-family:var(--mono);font-size:.7rem;background:#ede9fe;color:#4c1d95;border-radius:999px;padding:2px 8px;margin-left:6px}
+.slots{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;min-height:44px}
+.cell{width:26px;height:26px;border-radius:7px;border:1px solid #c4b5fd;background:#f5f3ff;font-family:var(--mono);font-size:.68rem;display:flex;align-items:center;justify-content:center;cursor:default;transition:transform .12s}
+.cell:hover{transform:scale(1.15)}
+.cell.hot{background:#fee2e2;border-color:#f87171;box-shadow:0 0 0 3px #fecaca}
+.cell.warm{background:#fef3c7;border-color:#f59e0b}
+.ticker{font-family:var(--mono);font-size:1.6rem;font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:.92rem;font-family:system-ui}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f5f0e1;font-family:var(--mono);font-size:.75rem;letter-spacing:.04em}
+.ok{color:var(--ok);font-weight:700}.bad{color:var(--bad);font-weight:700}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760px){.charts{grid-template-columns:1fr}}
+svg.chart{width:100%;height:200px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.evidence{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:760px){.evidence{grid-template-columns:1fr}}
+.ev{border-left:5px solid var(--vio);background:#fff;border-radius:0 12px 12px 0;padding:12px 14px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ev.warn{border-left-color:var(--amber)}
+.eq{font-family:Georgia,serif;font-size:1.15rem;background:#1c1917;color:#fef3c7;padding:14px;border-radius:12px;overflow-x:auto}
+.compare{overflow-x:auto}
+.quiz label{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;cursor:pointer;background:#fff;font-family:system-ui}
+.quiz .out{font-weight:700;font-family:system-ui}
+footer{max-width:980px;margin:0 auto;padding:0 20px 40px;color:var(--mut);font-size:.88rem}
+a{color:var(--vio)}
+.note{border:1px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:10px 12px;font-size:.88rem}
+@media print{.hero{color:#000;background:#fff}.lab-controls{background:#fff;color:#000;border:1px solid #000}button,.presets{display:none}}
+</style>
+</head>
+<body>
+<div class="hero sans"><div class="wrap">
+<div class="kicker">DataForge 2026 · Pathway · Cloud 9 · Key–Value Caching vs Recurrent Memory</div>
+<h1>Why forgetting is the <em>price of remembering cheaply.</em></h1>
+<p class="dek">Honest version: Transformers are that friend who saves every screenshot. Great memory, dead phone storage. Recurrent models are the friend who keeps one whiteboard and wipes it. We built this at KGP because we kept arguing about which friend BDH is. Spoiler: it picked the whiteboard — on purpose. Come break it with us.</p>
+<div class="claimbox">
+<b class="tag">OUR BET · PROVE US WRONG</b>
+<div style="font-size:1.05rem"><b>KV-cache: one drawer per word.</b> Grows forever, never lies. <b>Whiteboard: N slots, total.</b> Cheap forever, quietly lies when two words want the same corner. If you can keep the whiteboard honest at 500 words in 16 slots, we lose.</div>
+<div class="small mut">Built by Cloud 9, DataForge. If you know attention a little, you're good. 6 mins. The toy below is ours — scrappy, live, definitely not the real BDH.</div>
+</div>
+</div></div>
+
+<main>
+<section class="card sans">
+<div class="eyebrow">How this page works</div>
+<h2>No lecture. Just mess with it.</h2>
+<div class="steps">
+<div class="step"><b>1 · STARE</b><br>It's already running — 120 pairs, 32 slots. Cabinet's chilling at 100%. Whiteboard's already messed up ~80 times. Click a yellow cell. Ask it what happened.</div>
+<div class="step"><b>2 · BE MEAN</b><br>Press “Flood it”. That's 500 words into 16 slots — hostel-wifi-energy. Then flip the <b>state rule</b>: hash vs mamba-gate vs delta vs hola vs bdh-ρ. Same flood, five different ways to die.</div>
+<div class="step"><b>3 · OH, SO BDH DID THIS TOO</b><br>Yeah. The real machine chose the whiteboard life. Same headache, fancier math. Scroll and we'll show you the receipts.</div>
+</div>
+</section>
+
+<section class="card">
+<div class="eyebrow sans">The lab · live toy</div>
+<h2>Two memories, one stream of garbage words.</h2>
+<p class="small mut">We feed both the same junk — <span style="font-family:var(--mono)">mango-3 → 42</span>, <span style="font-family:var(--mono)">chai-7 → 88</span>, you get it. Cabinet files everything. Whiteboard goes <span style="font-family:var(--mono)">hash(key) % N</span> and whoever wrote last wins. Old IIT trick: last entry in the mess register counts. Pick a key below and catch the whiteboard lying.</p>
+<div class="lab-controls sans">
+<div><label>Pairs streaming in · n</label><input id="nSlider" type="range" min="10" max="500" step="10" value="120"><div><span class="ticker" id="nLab">120</span> <span class="mut">pairs</span></div></div>
+<div><label>Whiteboard slots · N</label><select id="nSlots"><option>16</option><option selected>32</option><option>64</option><option>128</option><option>256</option></select></div>
+<div><label>State rule · 5 ways to pay</label><select id="ruleSel"><option value="hash" selected>hash — last wins</option><option value="mamba">mamba-gate — salient kept</option><option value="delta">delta — blend (superposition)</option><option value="hola">hola — +8 exact cache</option><option value="bdh">bdh-ρ — decay + Hebbian</option></select></div>
+<div><label>Interrogate key</label><select id="qSel"></select></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="bFlood">Flood it: 500→16</button><button class="ghost" id="bRoom">Give it room: 256</button><button class="ghost" id="bPlay">▶ Stream</button></div>
+</div>
+<div class="note sans" id="ruleNote" style="margin-top:10px"></div>
+<div class="boards sans">
+<div class="board"><h3>Filing cabinet — KV-cache <span class="tag">O(n) · exact</span></h3><div>Slots held: <b id="kvUsed" style="font-family:var(--mono)">0</b></div><div class="slots" id="kvBar"></div><div class="small mut">Grows one per token. Retrieval: dot-product over everything. Cost: you pay for every old token, forever.</div></div>
+<div class="board"><h3>Whiteboard — recurrent state <span class="tag">O(1) · lossy</span></h3><div>Slots: <b id="rN" style="font-family:var(--mono)">32</b> · overwrites: <b id="rCol" style="font-family:var(--mono)">0</b></div><div class="slots" id="rBar"></div><div class="small mut">Yellow = someone got erased here. Red = currently lying to you. Click a cell to cross-examine.</div></div>
+</div>
+<h3 class="sans">Truth beside estimate</h3>
+<table class="sans"><thead><tr><th>Key</th><th>Truth</th><th>KV says</th><th>Whiteboard says</th><th>Who stole it?</th></tr></thead><tbody id="qRow"></tbody></table>
+<p class="small sans" id="accLine"></p>
+</section>
+
+<section class="card">
+<div class="eyebrow sans">The bill · live curves</div>
+<h2>Exactness sends an invoice.</h2>
+<p class="small mut">Left: drawers you have to buy. Right: answers you get wrong. Both drawn live from your N — and yeah, they print fine now, we learned that the hard way (canvas, never again).</p>
+<div class="charts sans"><div><h3 class="sans">Slots vs tokens</h3><svg class="chart" id="cMem" viewBox="0 0 440 200"></svg><p class="small" id="memLine"></p></div>
+<div><h3 class="sans">Whiteboard accuracy vs stream length</h3><svg class="chart" id="cAcc" viewBox="0 0 440 200"></svg><p class="small" id="accCurve"></p></div></div>
+</section>
+
+<section class="card">
+<div class="eyebrow sans">BDH module · the part we actually sweated over</div>
+<h2>Okay, so the real machine did the whiteboard thing too.</h2>
+<p><b>Who:</b> Dragon Hatchling (BDH), Pathway's weird-and-cool Post-Transformer. Quick note so nobody gets yelled at in Q&A: <b>not</b> a Mamba-style SSM — BDH-GPU is its own GPU-friendly rewrite from ReLU low-rank maps + linear attention. BDH doesn't keep drawers; it scribbles into <b>synapses while reading</b>. The one equation we're confident enough to frame (Eq.5):</p>
+<div class="eq">ρ<sub>t−1,l</sub> = Σ<sub>τ&lt;t</sub> v*<sub>τ,l−1</sub> x<sub>τ,l</sub><sup>T</sup> U<sup>t−τ</sup> <span style="font-size:.85rem;color:#d6d3d1">— BDH-GPU attention state, Eq.5: fixed-shape matrix, additive updates, O(1) in length</span></div>
+<p class="small mut">Same deal as your whiteboard upstairs, just with learned keys, a decay U, and ~5% of neurons awake at a time. If you want the full math: Kosowski et al. §3.2 Eqs.4–5, Hebbian lens 6–8, toy code App.E. We read it so you can skim it.</p>
+<div class="evidence sans">
+<div class="ev"><b>Receipt #1 · vendor told us, we didn't verify:</b> 134M BDH gets <b>95% at 32K → 82% at 128K</b> on BABILong QA1–QA5 (pathway.com). Holds long, sags under load — exactly your toy's curve, at real scale. <span class="mut">Pending contamination / independent / leaderboard review. A benchmark is not a deployment, we'll say it in the viva too.</span></div>
+<div class="ev warn"><b>Receipt #2 · the cousin BDH-CQ:</b> 150M, <b>29.5% pass@2 on ARC-AGI-1 @ ~$0.0007/task</b> (arXiv:2608.09888). Thinks in latent space, no chain-of-thought essays — cheap, not champion. Self-reported, weights unreleased.</div>
+</div>
+<p class="small"><b>Don't leave with the wrong lesson (we almost did):</b> this forgetting is silent — no "sorry, forgot" flag. And remembering for one chat ≠ learning forever. Getting fast memory into slow weights is still unsolved. Also please, never call BDH an SSM in front of the judges.</p>
+</section>
+
+<section class="card sans">
+<div class="eyebrow">Landscape in 30 seconds</div>
+<h2 style="font-family:Georgia">Who pays what?</h2>
+<div class="compare"><table><thead><tr><th>Family</th><th>Memory</th><th>Recall</th><th>Bill</th><th>Why care</th></tr></thead><tbody>
+<tr><td>Transformer KV</td><td>O(n)</td><td class="ok">perfect</td><td>O(T²), OOMs</td><td>gold standard, expensive</td></tr>
+<tr><td>Mamba SSM ’24</td><td>O(1) gated</td><td>lossy far</td><td>cheap</td><td>throughput king, weak needle</td></tr>
+<tr><td>HOLA ’26</td><td>O(1)+cache</td><td class="ok">recovered</td><td>cheap+cache</td><td>hippocampus for surprises</td></tr>
+<tr><td><b>BDH / CQ</b></td><td><b>O(1) synaptic</b></td><td>lossy, sags</td><td><b>lowest $/task shown</b></td><td>memory = reasoning fabric</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="card quiz sans">
+<div class="eyebrow">60-second check · be honest</div>
+<h2 style="font-family:Georgia">Bet you can't call the next move.</h2>
+<p class="small mut">No marks, no tracking. Judges will basically ask you this in the viva, so practice getting it wrong here first.</p>
+<label><input type="radio" name="q1"> <b>n=500, N=16:</b> whiteboard stays perfect because hashing is uniform.</label>
+<label><input type="radio" name="q1" data-ok="1"> <b>n=500, N=16:</b> whiteboard collapses; too many keys share too few slots.</label>
+<label><input type="radio" name="q1"> <b>KV-cache:</b> forgets oldest tokens first to stay O(1).</label>
+<div class="out" id="qOut">Answer, then set N=16 and flood it to check yourself.</div>
+</section>
+
+<section class="card">
+<div class="eyebrow sans">Receipts · verify, don’t trust</div>
+<h2>Sources & caps.</h2>
+<ol class="small">
+<li>Kosowski et al. <i>Dragon Hatchling: Missing Link between Transformer and Brain.</i> arXiv:2509.26507 (30 Sep 2025). Eqs.4–8, BDH-GPU App.E. <a href="https://arxiv.org/abs/2509.26507">arxiv</a></li>
+<li>Engdahl, Kosowski et al. <i>BDH-CQ: In-Context Learning with Recurrent Latent Reasoning.</i> arXiv:2608.09888 (10 Aug 2026). S<sub>t</sub>=U(S<sub>t−1</sub>,D<sub>t</sub>). <a href="https://arxiv.org/abs/2608.09888">arxiv</a></li>
+<li>Cui. <i>Hippocampus for Linear Attention.</i> arXiv:2607.02303 (2 Jul 2026). O(1) but lossy; overwrites. <a href="https://arxiv.org/abs/2607.02303">arxiv</a></li>
+<li>Gu &amp; Dao. <i>Mamba.</i> 2024. SSM baseline — related, distinct from BDH.</li>
+</ol>
+<div class="note sans"><b>Caps, honestly:</b> toy = string-hash % N, int values, exact-match. No learned keys, decay, sparsity. Small-N curves are live; BABILong/ARC are precomputed vendor numbers. Toy ≠ official BDH. Code: team-written, MIT. AI-assisted (Muse Spark); team defends all of it.</div>
+</section>
+</main>
+<footer class="sans">Made at 2am by Cloud 9 (IIT KGP, DataForge) — if something looks off, it's probably our hash function, tell us in Q&A. Single file, no login, no secrets · <a href="https://github.com/mbahc25088/IITKGP">repo</a> · <a href="https://mbahc25088.github.io/IITKGP/">live</a></footer>
+<script>
+const $=id=>document.getElementById(id);
+const kvBar=$('kvBar'),rBar=$('rBar'),nSlider=$('nSlider'),nLab=$('nLab'),nSlots=$('nSlots'),qSel=$('qSel'),qRow=$('qRow'),accLine=$('accLine'),ruleSel=$('ruleSel'),ruleNote=$('ruleNote');
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+const WORDS=["mango","river","tabla","neem","quartz","kite","chai","orbit","pixel","lotus","monsoon","tiger","banyan","cloud","saffron","ghat","iron","dog","cat","rickshaw"];
+function pairs(n){const a=[];for(let i=0;i<n;i++){const k=WORDS[i%WORDS.length]+"-"+Math.floor(i/WORDS.length);a.push({k,v:(hash(k)%89)+11})}return a}
+const RULES={hash:"<b>hash:</b> cartoon of raw overwrite. Last writer wins the slot. Honest baseline — real attention interferes by superposition, not modulo, same shape.",
+mamba:"<b>mamba-gate (cartoon):</b> selective gate. If the squatter's key hashes salient (÷3==0) the gate stays shut and the newcomer is refused. Fewer overwrites, biased memory.",
+delta:"<b>delta (cartoon):</b> superposition blend. Colliders average: v←round((old+new)/2). Slot answers <i>neither</i> key — the classic lossy-state failure.",
+hola:"<b>hola (cartoon):</b> whiteboard + 8-slot exact 'hippocampus' for recent collision victims (surprise cache). Whiteboard still O(1); cache rescues the surprises.",
+bdh:"<b>bdh-ρ (cartoon):</b> Hebbian + decay U. Writes add, old entries fade after ~50 steps. Long streams sag even without collisions — the BABILong shape."};
+let playing=null;
+function compute(n,N,rule){const P=pairs(n),kv=new Map(),slots=new Array(N).fill(null),writes=new Array(N).fill(0),keysAt=Array.from({length:N},()=>[]),age=new Array(N).fill(0);let col=0,cache=new Map(),step=0;
+P.forEach(p=>{kv.set(p.k,p.v);const s=hash(p.k)%N;writes[s]++;keysAt[s].push(p.k);step++;
+if(rule==="hash"){if(slots[s]&&slots[s].k!==p.k)col++;slots[s]={k:p.k,v:p.v}}
+else if(rule==="mamba"){if(slots[s]&&slots[s].k!==p.k){if(hash(slots[s].k)%3===0){col++}else{col++;slots[s]={k:p.k,v:p.v}}}else slots[s]={k:p.k,v:p.v}}
+else if(rule==="delta"){if(slots[s]&&slots[s].k!==p.k){col++;slots[s]={k:p.k,v:Math.round((slots[s].v+p.v)/2)}}else slots[s]={k:p.k,v:p.v}}
+else if(rule==="hola"){if(slots[s]&&slots[s].k!==p.k){col++;if(cache.size>=8){const fk=cache.keys().next().value;cache.delete(fk)}cache.set(slots[s].k,slots[s].v);slots[s]={k:p.k,v:p.v}}else slots[s]={k:p.k,v:p.v}}
+else if(rule==="bdh"){if(slots[s]&&slots[s].k!==p.k)col++;slots[s]={k:p.k,v:p.v};age[s]=step}
+});return{P,kv,slots,writes,keysAt,col,cache,age,step}}
+function recall(P,slots,kv,N,rule,cache,age,step){let c=0;P.forEach(p=>{const s=hash(p.k)%N;if(rule==="hola"&&cache.has(p.k)&&cache.get(p.k)===p.v){c++;return}const sl=slots[s];if(!sl)return;if(rule==="bdh"){if(sl.k===p.k&&sl.v===p.v&&(step-age[s]<=60))c++;return}if(rule==="delta"){if(sl.k===p.k&&sl.v===p.v)c++;return}if(sl.k===p.k&&sl.v===p.v)c++});return c/P.length}
+function render(){const n=+nSlider.value,N=+nSlots.value,rule=ruleSel.value;nLab.textContent=n;$('rN').textContent=N;ruleNote.innerHTML=RULES[rule]+" <span class='mut'>Cartoons of write/read rules for teaching — not real kernels. Toy ≠ official models.</span>";
+const {P,kv,slots,writes,keysAt,col,cache,age,step}=compute(n,N,rule);
+$('kvUsed').textContent=kv.size;$('rCol').textContent=col;
+kvBar.innerHTML="";P.slice(0,120).forEach(p=>{const d=document.createElement('div');d.className='cell';d.style.borderColor='#a78bfa';d.style.background='#ede9fe';d.title=p.k+" → "+p.v;kvBar.appendChild(d)});
+if(n>120){const s=document.createElement('span');s.className='small mut';s.textContent="+"+(n-120)+" more drawers — it never stops growing";kvBar.appendChild(s)}
+rBar.innerHTML="";for(let s=0;s<N;s++){const d=document.createElement('div');d.className='cell'+(writes[s]>1?' warm':'');d.textContent=writes[s]>1?writes[s]:'';d.title="slot "+s+": "+(keysAt[s].slice(-3).join(", ")||"empty");d.onclick=()=>{const last=keysAt[s][0];if(last){qSel.value=last;renderQuery()}};d.dataset.slot=s;rBar.appendChild(d)}
+if(qSel.options.length!==P.length){const cur=qSel.value;qSel.innerHTML="";P.forEach(p=>{const o=document.createElement('option');o.value=p.k;o.textContent=p.k;qSel.appendChild(o)});if([...qSel.options].some(o=>o.value===cur))qSel.value=cur;else{let qi=P.length-1;const seen={};for(let i=0;i<P.length;i++){const s=hash(P[i].k)%N;if(seen[s]!==undefined){qi=i;break}seen[s]=i}qSel.value=P[qi].k}}
+renderQuery();draw(n,N,rule)}
+function renderQuery(){const n=+nSlider.value,N=+nSlots.value,rule=ruleSel.value,{P,kv,slots,keysAt,cache,age,step}=compute(n,N,rule);const k=qSel.value;if(!k)return;const s=hash(k)%N,truth=kv.get(k);
+let ans,ok,why;
+if(rule==="hola"&&cache.has(k)){ans=cache.get(k);ok=ans===truth;why=ok?"rescued by exact cache (hippocampus)":"cache stale"}
+else{const slot=slots[s];if(rule==="bdh"&&slot&&slot.k===k&&(step-age[s]>60)){ans=slot.v;ok=false;why="faded by decay U — wrote too long ago"}else{ok=slot&&slot.k===k&&slot.v===truth;ans=slot?slot.v:"?";const thieves=keysAt[s].filter(x=>x!==k).slice(-3).reverse();
+if(ok)why="still legible — last writer was you";else if(rule==="delta")why="blended with <b>"+thieves.join(", ")+"</b> → "+ans+" (neither value)";else why="overwritten by <b>"+thieves.join(", ")+"</b>"}}
+qRow.innerHTML="<tr><td><b style='font-family:var(--mono)'>"+k+"</b><br><span class='small mut'>drawer "+s+" · "+rule+"</span></td><td style='font-family:var(--mono)'>"+truth+"</td><td class='ok'>"+truth+"</td><td class='"+(ok?'ok':'bad')+"'>"+ans+(ok?"":" ✗")+"</td><td class='small'>"+why+"</td></tr>";
+[...rBar.children].forEach(d=>d.classList.toggle('hot',+d.dataset.slot===s));
+const r=recall(P,slots,kv,N,rule,cache,age,step);accLine.innerHTML="Rule <b>"+rule+"</b> recall: <b>"+(100*r).toFixed(1)+"%</b> · Cabinet: <b>100%</b> · Slot collisions: <b>"+$('rCol').textContent+"</b>"+(rule==="hola"?" · cache rescues: <b>"+cache.size+"</b>":"")}
+function svgLine(svg,pts,color){const ns='http://www.w3.org/2000/svg';const t=svg.querySelector('text.lbl');svg.querySelectorAll('line.curve').forEach(e=>e.remove());
+pts.forEach((p,i)=>{if(!i)return;const l=document.createElementNS(ns,'line');l.classList.add('curve');l.setAttribute('x1',pts[i-1][0]);l.setAttribute('y1',pts[i-1][1]);l.setAttribute('x2',p[0]);l.setAttribute('y2',p[1]);l.setAttribute('stroke',color);l.setAttribute('stroke-width','2.5');l.setAttribute('stroke-linecap','round');svg.appendChild(l)});if(t)svg.appendChild(t)}
+function axes(svg){const ns='http://www.w3.org/2000/svg';if(svg.dataset.ax)return;svg.dataset.ax=1;
+for(let g=0;g<4;g++){const l=document.createElementNS(ns,'line');l.setAttribute('x1','40');l.setAttribute('x2','430');l.setAttribute('y1',30+g*40);l.setAttribute('y2',30+g*40);l.setAttribute('stroke','#eee7d3');svg.appendChild(l)}
+const t=document.createElementNS(ns,'text');t.classList.add('lbl');t.setAttribute('x','44');t.setAttribute('y','22');t.setAttribute('font-size','12');t.setAttribute('fill','#78716c');t.setAttribute('font-family','monospace');svg.appendChild(t)}
+function draw(n,N,rule){const m=$('cMem'),a=$('cAcc');axes(m);axes(a);
+m.querySelector('text.lbl').textContent='purple climbs O(n) · amber flat O(1)';a.querySelector('text.lbl').textContent='accuracy per rule — live ('+rule+')';
+const mp=[];for(let t=0;t<=60;t++){const nn=t/60*500;mp.push([40+t/60*390,170-(nn/500)*135])}svgLine(m,mp,'#7c3aed');
+const fp=[];for(let t=0;t<=60;t++)fp.push([40+t/60*390,150]);svgLine(m,fp,'#b45309');
+$('memLine').innerHTML='Right now: cabinet <b>'+n+'</b> drawers vs whiteboard <b>'+N+'</b> under rule <b>'+rule+'</b>. At 500: 500 vs '+N+'.';
+const ap=[];let now=0;for(let t=0;t<=20;t++){const nn=10+Math.round(t/20*490);const o=compute(nn,N,rule);const v=recall(o.P,o.slots,o.kv,N,rule,o.cache,o.age,o.step);if(Math.abs(nn-n)<25)now=v;ap.push([40+t/20*390,170-v*135])}
+svgLine(a,ap,'#991b1b');$('accCurve').innerHTML='Rule '+rule+': n='+n+', N='+N+' → <b>'+(100*now).toFixed(1)+'%</b>. Switch rules at same n/N — that gap is the whole talk.'}
+nSlider.oninput=render;nSlots.onchange=render;ruleSel.onchange=render;qSel.onchange=renderQuery;
+$('bFlood').onclick=()=>{nSlider.value=500;nSlots.value="16";render()};
+$('bRoom').onclick=()=>{nSlots.value="256";render()};
+$('bPlay').onclick=e=>{if(playing){clearInterval(playing);playing=null;e.target.textContent="▶ Stream";return}e.target.textContent="⏸ Pause";nSlider.value=20;render();playing=setInterval(()=>{let v=+nSlider.value+20;if(v>=500){clearInterval(playing);playing=null;$('bPlay').textContent="▶ Stream"}nSlider.value=Math.min(500,v);render()},180)};
+document.querySelectorAll('input[name=q1]').forEach(r=>r.onchange=e=>{$('qOut').textContent=e.target.dataset.ok?"Right. Now prove it: hit “Flood it” and watch recall crater.":"Not quite — flood it (500→16) and see who survives."});
+render();
+</script>
+</body>
+</html>
