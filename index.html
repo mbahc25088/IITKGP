@@ -53,7 +53,7 @@ svg.chart{width:100%;height:200px;border:1px solid var(--line);border-radius:12p
 .evidence{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:760px){.evidence{grid-template-columns:1fr}}
 .ev{border-left:5px solid var(--vio);background:#fff;border-radius:0 12px 12px 0;padding:12px 14px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 .ev.warn{border-left-color:var(--amber)}
-.eq{font-family:Georgia,serif;font-size:1.15rem;background:#1c1917;color:#fef3c7;padding:14px;border-radius:12px;overflow-x:auto}
+.eq{font-family:Georgia,serif;background:#1c1917;color:#fef3c7;padding:16px 18px;border-radius:12px;overflow-x:auto;line-height:1.7;border:1px solid #44403c}.eq .math{display:block;font-family:var(--mono);font-size:1.25rem;letter-spacing:.02em;color:#fff;white-space:nowrap}.eq .math sub,.eq .math sup{font-size:.72em;color:#fcd34d}.eq .cap{display:block;margin-top:8px;font-size:.85rem;font-family:system-ui;color:#e7e5e4}
 .compare{overflow-x:auto}
 .quiz label{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;cursor:pointer;background:#fff;font-family:system-ui}
 .quiz .out{font-weight:700;font-family:system-ui}
@@ -120,7 +120,7 @@ a{color:var(--vio)}
 <div class="eyebrow sans">BDH module · the part we actually sweated over</div>
 <h2>Okay, so the real machine did the whiteboard thing too.</h2>
 <p><b>Who:</b> Dragon Hatchling (BDH), Pathway's weird-and-cool Post-Transformer. Quick note so nobody gets yelled at in Q&A: <b>not</b> a Mamba-style SSM — BDH-GPU is its own GPU-friendly rewrite from ReLU low-rank maps + linear attention. BDH doesn't keep drawers; it scribbles into <b>synapses while reading</b>. The one equation we're confident enough to frame (Eq.5):</p>
-<div class="eq">ρ<sub>t−1,l</sub> = Σ<sub>τ&lt;t</sub> v*<sub>τ,l−1</sub> x<sub>τ,l</sub><sup>T</sup> U<sup>t−τ</sup> <span style="font-size:.85rem;color:#d6d3d1">— BDH-GPU attention state, Eq.5: fixed-shape matrix, additive updates, O(1) in length</span></div>
+<div class="eq"><span class="math">ρ<sub>t−1,l</sub> &nbsp;=&nbsp; Σ<sub>τ&lt;t</sub> &nbsp;v*<sub>τ,l−1</sub> &nbsp;x<sub>τ,l</sub><sup>T</sup> &nbsp;U<sup>t−τ</sup></span><span class="cap">BDH-GPU attention state, Eq.5 — fixed-shape matrix · additive updates · O(1) in length</span></div>
 <p class="small mut">Same deal as your whiteboard upstairs, just with learned keys, a decay U, and ~5% of neurons awake at a time. Why not standard linear attention (Katharopoulos / Performer with fixed φ)? Those use fixed positive feature maps to approximate softmax and suffer unnormalized drift. BDH uses strictly non-negative sparse activations via ReLU low-rank maps plus Hebbian plasticity modulated by U — stable O(1) without O(n²). Full math: Kosowski et al. §3.2 Eqs.4–5, Hebbian lens 6–8, toy code App.E.</p>
 <div class="evidence sans">
 <div class="ev"><b>Receipt #1 · vendor told us, we didn't verify:</b> 134M BDH gets <b>95% at 32K → 82% at 128K</b> on BABILong QA1–QA5 (pathway.com). Holds long, sags under load — exactly your toy's curve, at real scale. <span class="mut">Pending contamination / independent / leaderboard review. A benchmark is not a deployment, we'll say it in the viva too.</span></div>
@@ -200,17 +200,19 @@ if(ok)why="still legible — last writer was you";else if(rule==="delta")why="bl
 qRow.innerHTML="<tr><td><b style='font-family:var(--mono)'>"+k+"</b><br><span class='small mut'>drawer "+s+" · "+rule+"</span></td><td style='font-family:var(--mono)'>"+truth+"</td><td class='ok'>"+truth+"</td><td class='"+(ok?'ok':'bad')+"'>"+ans+(ok?"":" ✗")+"</td><td class='small'>"+why+"</td></tr>";
 [...rBar.children].forEach(d=>d.classList.toggle('hot',+d.dataset.slot===s));
 const r=recall(P,slots,kv,N,rule,cache,age,step);accLine.innerHTML="Rule <b>"+rule+"</b> recall: <b>"+(100*r).toFixed(1)+"%</b> · Cabinet: <b>100%</b> · Slot collisions: <b>"+$('rCol').textContent+"</b>"+(rule==="hola"?" · cache rescues: <b>"+cache.size+"</b>":"")}
-function svgLine(svg,pts,color){const ns='http://www.w3.org/2000/svg';const t=svg.querySelector('text.lbl');svg.querySelectorAll('line.curve').forEach(e=>e.remove());
+function svgLine(svg,pts,color){const ns='http://www.w3.org/2000/svg';const t=svg.querySelector('text.lbl');
 pts.forEach((p,i)=>{if(!i)return;const l=document.createElementNS(ns,'line');l.classList.add('curve');l.setAttribute('x1',pts[i-1][0]);l.setAttribute('y1',pts[i-1][1]);l.setAttribute('x2',p[0]);l.setAttribute('y2',p[1]);l.setAttribute('stroke',color);l.setAttribute('stroke-width','2.5');l.setAttribute('stroke-linecap','round');svg.appendChild(l)});if(t)svg.appendChild(t)}
+function clearCurves(svg){svg.querySelectorAll('line.curve').forEach(e=>e.remove())}
 function axes(svg){const ns='http://www.w3.org/2000/svg';if(svg.dataset.ax)return;svg.dataset.ax=1;
 for(let g=0;g<4;g++){const l=document.createElementNS(ns,'line');l.setAttribute('x1','40');l.setAttribute('x2','430');l.setAttribute('y1',30+g*40);l.setAttribute('y2',30+g*40);l.setAttribute('stroke','#eee7d3');svg.appendChild(l)}
 const t=document.createElementNS(ns,'text');t.classList.add('lbl');t.setAttribute('x','44');t.setAttribute('y','22');t.setAttribute('font-size','12');t.setAttribute('fill','#78716c');t.setAttribute('font-family','monospace');svg.appendChild(t)}
-function draw(n,N,rule){const m=$('cMem'),a=$('cAcc');axes(m);axes(a);
+function draw(n,N,rule){const m=$('cMem'),a=$('cAcc');axes(m);axes(a);clearCurves(m);clearCurves(a);
 m.querySelector('text.lbl').textContent='purple climbs O(n) · amber flat O(1)';a.querySelector('text.lbl').textContent='accuracy per rule — live ('+rule+')';
 const mp=[];for(let t=0;t<=60;t++){const nn=t/60*500;mp.push([40+t/60*390,170-(nn/500)*135])}svgLine(m,mp,'#7c3aed');
 const fp=[];for(let t=0;t<=60;t++)fp.push([40+t/60*390,150]);svgLine(m,fp,'#b45309');
 $('memLine').innerHTML='Right now: cabinet <b>'+n+'</b> drawers vs whiteboard <b>'+N+'</b> under rule <b>'+rule+'</b>. At 500: 500 vs '+N+'.';
-const ap=[];let now=0;for(let t=0;t<=20;t++){const nn=10+Math.round(t/20*490);const o=compute(nn,N,rule);const v=recall(o.P,o.slots,o.kv,N,rule,o.cache,o.age,o.step);if(Math.abs(nn-n)<25)now=v;ap.push([40+t/20*390,170-v*135])}
+const ap=[];for(let t=0;t<=20;t++){const nn=10+Math.round(t/20*490);const o=compute(nn,N,rule);const v=recall(o.P,o.slots,o.kv,N,rule,o.cache,o.age,o.step);ap.push([40+t/20*390,170-v*135])}
+const oe=compute(n,N,rule);const now=recall(oe.P,oe.slots,oe.kv,N,rule,oe.cache,oe.age,oe.step);
 svgLine(a,ap,'#991b1b');$('accCurve').innerHTML='Rule '+rule+': n='+n+', N='+N+' → <b>'+(100*now).toFixed(1)+'%</b>. Switch rules at same n/N — that gap is the whole talk.'}
 nSlider.oninput=render;nSlots.onchange=render;ruleSel.onchange=render;qSel.onchange=renderQuery;
 $('bFlood').onclick=()=>{nSlider.value=500;nSlots.value="16";render()};
