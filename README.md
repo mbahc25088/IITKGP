@@ -56,7 +56,7 @@ Hero claim → steps (Watch/Break/Meet BDH) → lab → bill (charts) → BDH gr
 Team-written `index.html` (MIT). No weights/data/fonts/graphics reused. Facts via arXiv + pathway.com, linked. No forks.
 
 ## 9. AI assistance disclosure
-AI-assisted code/prose/design (Muse Spark via OpenCode). Team traces, predicts, and defends every component. Toy labeled not-official-BDH throughout.
+AI-assisted prose design (Muse Spark via OpenCode). Team traces, predicts, and defends every component. Toy labeled not-official-BDH throughout.
 
 ## 10. Limits
 Hash ≠ learned keys/decay/sparsity. Exact-match only. Vendor numbers unreproduced. Forgetting silent. Session memory ≠ durable learning.
