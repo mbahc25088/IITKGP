@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KV-Cache Grows, Recurrent State Forgets — An Interactive Explainer + BDH</title>
+<style>
+:root{--bg:#fafafa;--ink:#18181b;--mut:#52525b;--acc:#6d28d9;--ok:#15803d;--bad:#b91c1c;--card:#fff;--line:#e4e4e7}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+header{background:#4c1d95;color:#fff;padding:28px 20px}header h1{margin:0 0 8px;font-size:1.5rem}header p{margin:4px 0;opacity:.92}
+main{max-width:960px;margin:0 auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:16px 0}
+.claim{border-left:6px solid var(--acc);padding:12px 14px;background:#f5f3ff;border-radius:0 12px 12px 0}
+.controls{display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin:12px 0}
+.controls label{font-size:.85rem;color:var(--mut);display:block}
+.controls input[type=range]{width:220px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.panels{grid-template-columns:1fr}}
+.mem{border:1px solid var(--line);border-radius:10px;padding:12px;min-height:120px}
+.mem h3{margin:0 0 6px;font-size:1rem}
+.kvbar{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}.slot{width:18px;height:18px;border-radius:4px;background:#ddd6fe;border:1px solid #c4b5fd;font-size:10px;display:flex;align-items:center;justify-content:center}
+.slot.collide{background:#fecaca;border-color:#f87171}.slot.overwrite{background:#fde68b;border-color:#f59e0b}
+table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+.ok{color:var(--ok);font-weight:700}.bad{color:var(--bad);font-weight:700}
+canvas{width:100%;height:180px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.badge{display:inline-block;font-size:.72rem;background:#ede9fe;color:#4c1d95;border-radius:999px;padding:2px 10px;margin-left:8px}
+.small{font-size:.85rem;color:var(--mut)}
+footer{padding:20px;color:var(--mut);font-size:.85rem}
+a{color:#4c1d95}
+</style>
+</head>
+<body>
+<header>
+<h1>KV-Cache Grows. Recurrent State Forgets.</h1>
+<p><b>One falsifiable claim:</b> A Transformer KV-cache allocates a new slot per token — memory grows O(n) and retrieval stays exact. A fixed-size recurrent state stays O(1) but silently forgets through interference when writes collide.</p>
+<p class="small">Audience: 2nd-year BTech who knows attention basics. Prereq: what a key→value lookup is. Time: ~5 min guided + sandbox.</p>
+</header>
+<main>
+
+<div class="card claim">
+<b>Try it in 10 seconds:</b> the demo below is already running with 120 pairs and 32 state slots.
+KV side is perfect. Recurrent side is already wrong on some keys — find a red row, see <i>which other key stole its slot</i>. Then drag sequence length to 500 and watch the gap.
+<span class="badge">LIVE TOY — not official BDH</span>
+</div>
+
+<div class="card">
+<h2>1. The substrate — two toy memories side by side</h2>
+<div class="controls">
+<div><label>Sequence length (pairs): <b id="nLab">120</b></label>
+<input id="nSlider" type="range" min="10" max="500" step="10" value="120"></div>
+<div><label>Recurrent state slots (N):</label>
+<select id="nSlots"><option>16</option><option selected>32</option><option>64</option><option>128</option><option>256</option></select></div>
+<div><label>Query key:</label><select id="qSel"></select></div>
+</div>
+<div class="panels">
+<div class="mem"><h3>KV-cache <span class="badge">O(n) · exact</span></h3>
+<div>Slots used: <b id="kvUsed">0</b></div><div class="kvbar" id="kvBar"></div></div>
+<div class="mem"><h3>Fixed recurrent state <span class="badge">O(1) · lossy</span></h3>
+<div>Slots: <b id="rN">32</b> · Collisions so far: <b id="rCol">0</b></div><div class="kvbar" id="rBar"></div>
+<div class="small">Yellow = overwritten at least once. Red = slot answering your current query (collision).</div></div>
+</div>
+<h3>Truth beside estimate</h3>
+<table><thead><tr><th>Key</th><th>Ground truth</th><th>KV-cache returns</th><th>Recurrent returns</th><th>Why wrong?</th></tr></thead>
+<tbody id="qRow"></tbody></table>
+<p class="small" id="accLine"></p>
+</div>
+
+<div class="card">
+<h2>2. Cost of exactness</h2>
+<p class="small">LIVE computation on your toy (left). Memory in slots; recurrent is flat, KV grows. Accuracy of recurrent recall falls as n ≫ N.</p>
+<div class="panels"><div><h3>Memory slots vs tokens</h3><canvas id="cMem" width="440" height="180"></canvas></div>
+<div><h3>Recurrent recall accuracy vs length</h3><canvas id="cAcc" width="440" height="180"></canvas></div></div>
+</div>
+
+<div class="card">
+<h2>3. BDH module — where this trade-off lives in a real architecture</h2>
+<p><b>Which system:</b> Dragon Hatchling (BDH), Pathway's Post-Transformer family. <b>Not</b> an SSM in the Mamba sense — BDH-GPU is a separate GPU-friendly formulation built from ReLU low-rank transforms with linear attention (per the approved-topic note).</p>
+<p>What's changing in BDH is <b>synaptic state, not a token-indexed cache</b>. Conceptually, attention becomes synaptic memory through Hebbian writes as the model reads. One reference equation (BDH-GPU attention state, Eq. 5 in the paper):</p>
+<p style="font-family:serif;background:#f5f3ff;padding:10px;border-radius:8px">ρ<sub>t−1,l</sub> = Σ<sub>τ&lt;t</sub> v*<sub>τ,l−1</sub> x<sub>τ,l</sub><sup>T</sup> U<sup>t−τ</sup></p>
+<p class="small">A fixed-shape matrix ρ accumulates past associations additively (O(1) in length) — same design choice your toy illustrated, now with learned keys/values, decay U, and sparse non-negative activity. See Kosowski et al. §3.2, Eqs. 4–5; Hebbian view in Eqs. 6–8 and the official toy BDH implementation.</p>
+<p><b>Clearly-labeled precomputed evidence (developer-reported, not independent):</b> on BABILong QA1–QA5, a 134M-parameter BDH model reaches <b>95% at 32K tokens, 82% at 128K</b> (pathway.com homepage). Same pattern as your toy: holds long, then degrades under load. Label: <i>vendor benchmark, pending contamination checks / independent validation / leaderboard review</i>.</p>
+<p><b>Sibling system BDH-CQ</b> (same family, different benchmark): 150M params, 29.5% pass@2 on ARC-AGI-1 at ~$0.0007/task — a cost-accuracy Pareto point achieved by recurrent latent reasoning without verbal chain-of-thought (arXiv:2608.09888). Shows the O(1)-state family trading raw accuracy for intelligence-per-dollar.</p>
+<p class="small"><b>Limitation / misconception:</b> fixed-state ≠ free lunch; interference is silent (no "I forgot" flag). Within-session memory ≠ durable cross-session learning — consolidating useful fast state into slow weights remains open (fast-to-slow transfer). Do not equate BDH with Mamba-style SSM.</p>
+</div>
+
+<div class="card">
+<h2>4. Sources (verify, don't trust memory)</h2>
+<ol class="small">
+<li>Kosowski et al. <i>The Dragon Hatchling: The Missing Link between the Transformer and Models of the Brain.</i> arXiv:2509.26507 (30 Sep 2025). Primary BDH source — architecture, Eqs. 4–8, BDH-GPU code (App. E). <a href="https://arxiv.org/abs/2509.26507">arxiv</a></li>
+<li>Engdahl, Kosowski et al. <i>BDH-CQ: In-Context Learning with Recurrent Latent Reasoning.</i> arXiv:2608.09888 (10 Aug 2026). 150M, 29.5% pass@2 ARC-AGI-1 @ $0.0007/task; recurrent memory S<sub>t</sub>=U(S<sub>t−1</sub>,D<sub>t</sub>), no eval-task demos in training, no weight update at inference. <a href="https://arxiv.org/abs/2608.09888">arxiv</a></li>
+<li>Cui. <i>A Hippocampus for Linear Attention: An Exact Memory for What the Recurrent State Forgets.</i> arXiv:2607.02303 (2 Jul 2026). Independent statement of our claim: fixed-size recurrent state = O(1) but lossy; competing key–value writes overwrite earlier facts. <a href="https://arxiv.org/abs/2607.02303">arxiv</a></li>
+<li>Gu &amp; Dao. <i>Mamba: Linear-Time Sequence Modeling with Selective State Spaces.</i> 2024 — representative SSM baseline for the summary comparison table; BDH cites as related work but is architecturally distinct.</li>
+</ol>
+<p class="small">Caps disclosed: toy uses string-hash modulo N, integer values, exact-match queries; no learned keys, no decay, no sparsity. All small-N results above are live; BABILong / ARC numbers are precomputed vendor results.</p>
+</div>
+
+</main>
+<footer>Toy reimplementation for teaching only — not an official BDH model. No credentials, no backend. Deploy as static index.html on GitHub Pages.</footer>
+<script>
+const kvBar=document.getElementById('kvBar'),rBar=document.getElementById('rBar'),
+nSlider=document.getElementById('nSlider'),nLab=document.getElementById('nLab'),
+nSlots=document.getElementById('nSlots'),qSel=document.getElementById('qSel'),
+qRow=document.getElementById('qRow'),accLine=document.getElementById('accLine');
+function hash(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0}return h}
+const WORDS=["cat","dog","river","cloud","iron","mango","orbit","pixel","saffron","tiger","lotus","monsoon","quartz","neem","banyan","kite","tabla","rickshaw","chai","ghat"];
+function pairs(n){const a=[];for(let i=0;i<n;i++){const k=WORDS[i%WORDS.length]+"-"+Math.floor(i/WORDS.length);a.push({k,v:(hash(k)%90)+10})}return a}
+function render(){
+const n=+nSlider.value,N=+nSlots.value;nLab.textContent=n;
+document.getElementById('rN').textContent=N;
+const P=pairs(n),kv=new Map(),slots=new Array(N).fill(null),slotWrites=new Array(N).fill(0),coll=Map;
+let collisions=0;const owner=new Array(N).fill(null);
+P.forEach((p,i)=>{kv.set(p.k,p.v);const s=hash(p.k)%N;slotWrites[s]++;
+if(slots[s]!==null&&slots[s].k!==p.k)collisions++;
+slots[s]={k:p.k,v:p.v};owner[s]=p.k;});
+document.getElementById('kvUsed').textContent=kv.size;
+document.getElementById('rCol').textContent=collisions;
+kvBar.innerHTML="";const show=Math.min(n,120);
+for(let i=0;i<show;i++){const d=document.createElement('div');d.className='slot';d.title=P[i].k+"→"+P[i].v;kvBar.appendChild(d)}
+if(n>show){const s=document.createElement('span');s.className='small';s.textContent="+"+(n-show)+" more (grows with n)";kvBar.appendChild(s)}
+rBar.innerHTML="";for(let s=0;s<Math.min(N,256);s++){const d=document.createElement('div');d.className='slot'+(slotWrites[s]>1?' overwrite':'');d.title="slot "+s+" writes:"+slotWrites[s];d.textContent=slotWrites[s]>1?slotWrites[s]:'';rBar.appendChild(d)}
+qSel.innerHTML="";P.forEach((p,i)=>{const o=document.createElement('option');o.value=p.k;o.textContent=p.k;qSel.appendChild(o)});
+// default query: first key that collided (most instructive), else last
+let qi=P.length-1;const seen={};
+for(let i=0;i<P.length;i++){const s=hash(P[i].k)%N;if(seen[s]!==undefined){qi=i;break}seen[s]=i}
+qSel.value=P[qi].k;renderQuery(P,slots,kv);
+let correct=0;P.forEach(p=>{const s=hash(p.k)%N;if(slots[s].k===p.k&&slots[s].v===p.v)correct++});
+const acc=(100*correct/P.length).toFixed(1);
+accLine.innerHTML="Recurrent recall on all "+n+" keys with N="+N+": <b>"+acc+"%</b> ("+correct+"/"+P.length+"). KV-cache: 100%.";
+drawCharts(P);
+}
+function renderQuery(P,slots,kv){
+const k=qSel.value,s=hash(k)%N,truth=kv.get(k),kvAns=truth,slot=slots[s];
+const rAns=slot.v,ok=slot.k===k;
+const others=P.filter(p=>p.k!==k&&(hash(p.k)%N)===s).map(p=>p.k).slice(0,3).join(", ")||"—";
+qRow.innerHTML="<tr><td><b>"+k+"</b><br><span class='small'>slot "+s+"</span></td><td>"+truth+"</td><td class='ok'>"+kvAns+"</td><td class='"+(ok?'ok':'bad')+"'>"+rAns+(ok?'':' ✗')+"</td><td class='small'>"+(ok?'no collision on latest write':'stolen by: '+others)+"</td></tr>";
+[...rBar.children].forEach((d,i)=>{if(i===s)d.classList.add('collide')});
+}
+function drawCharts(P){
+const c1=document.getElementById('cMem'),c2=document.getElementById('cAcc');
+[c1,c2].forEach(c=>{c.getContext('2d').clearRect(0,0,c.width,c.height)});
+const x1=c1.getContext('2d');x1.strokeStyle='#6d28d9';x1.lineWidth=2;x1.beginPath();
+for(let t=0;t<=100;t++){const n=t/100*500,x=10+t/100*(c1.width-20),y=c1.height-15-(n/500)*(c1.height-30);t?x1.lineTo(x,y):x1.moveTo(x,y)}x1.stroke();
+x1.strokeStyle='#15803d';x1.beginPath();x1.moveTo(10,c1.height-40);x1.lineTo(c1.width-10,c1.height-40);x1.stroke();
+x1.fillStyle='#52525b';x1.font='11px sans-serif';x1.fillText('purple=KV O(n) grows',12,14);x1.fillText('green=recurrent O(1) flat',12,28);
+const N=+nSlots.value,x2=c2.getContext('2d');x2.strokeStyle='#b91c1c';x2.lineWidth=2;x2.beginPath();
+for(let t=0;t<=50;t++){const n=10+t/50*490;let c=0;const tmp=new Array(N).fill(null);const Q=pairs(n);
+Q.forEach(p=>{const s=hash(p.k)%N;tmp[s]={k:p.k,v:p.v}});Q.forEach(p=>{const s=hash(p.k)%N;if(tmp[s].k===p.k)c++});
+const a=c/Q.length,x=10+t/50*(c2.width-20),y=c2.height-15-a*(c2.height-30);t?x2.lineTo(x,y):x2.moveTo(x,y)}x2.stroke();
+x2.fillStyle='#52525b';x2.fillText('recall falls as n >> N (live)',12,14);
+}
+nSlider.oninput=render;nSlots.onchange=render;qSel.onchange=()=>{const n=+nSlider.value,N=+nSlots.value,P=pairs(n),kv=new Map(P.map(p=>[p.k,p.v])),slots=new Array(N).fill(null);P.forEach(p=>{slots[hash(p.k)%N]={k:p.k,v:p.v}});renderQuery(P,slots,kv)};
+render();
+</script>
+</body>
+</html>
